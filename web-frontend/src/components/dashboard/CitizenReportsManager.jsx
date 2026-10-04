@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { updateCitizenReportStatus } from '../../services/apiService';
 import { 
@@ -20,6 +20,7 @@ export default function CitizenReportsManager({ reports = [], onReportsUpdate })
   const [filter, setFilter] = useState('ALL'); // 'ALL' | 'INCELEMEDE' | 'ONAYLANDI' | 'TUTARSIZ'
   const [updatingId, setUpdatingId] = useState(null);
   const [actionError, setActionError] = useState(null);
+  const [expandedExplanations, setExpandedExplanations] = useState(() => new Set());
   const scrollContainerRef = useRef(null);
 
   // Belediye personeli operasyonel onay yetkisi
@@ -212,6 +213,9 @@ export default function CitizenReportsManager({ reports = [], onReportsUpdate })
           {filteredReports.map((report) => {
             const currentStatus = report.ai_validation_status || report.status || 'INCELEMEDE';
             const isUpdating = updatingId === report.id;
+            const explanation = report.ai_explanation || report.ai_verification?.feedback || "Computer vision anomaly validation completed.";
+            const canExpandExplanation = explanation.length > 70;
+            const isExplanationExpanded = expandedExplanations.has(report.id);
 
             return (
               <div 
@@ -276,9 +280,27 @@ export default function CitizenReportsManager({ reports = [], onReportsUpdate })
                       {((report.ai_verification?.confidence ?? 0.85) * 100).toFixed(0)}%
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-300 line-clamp-2 leading-tight">
-                    {report.ai_explanation || report.ai_verification?.feedback || "Computer vision anomaly validation completed."}
+                  <p className={`text-[11px] text-slate-300 leading-tight ${isExplanationExpanded ? '' : 'line-clamp-2'}`}>
+                    {explanation}
                   </p>
+                  {canExpandExplanation && (
+                    <button
+                      type="button"
+                      onClick={() => setExpandedExplanations((current) => {
+                        const next = new Set(current);
+                        if (next.has(report.id)) {
+                          next.delete(report.id);
+                        } else {
+                          next.add(report.id);
+                        }
+                        return next;
+                      })}
+                      aria-expanded={isExplanationExpanded}
+                      className="text-[10px] text-cyan-400 hover:text-cyan-300 focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-400 rounded"
+                    >
+                      {isExplanationExpanded ? 'Show less' : '… Show more'}
+                    </button>
+                  )}
                 </div>
 
                 {/* Alt Kısım: Zaman & Aksiyon Butonları */}
